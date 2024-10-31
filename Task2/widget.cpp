@@ -102,12 +102,13 @@ void Widget::MaleBild8Bit()
     dataFile.close();
 
     // Setze Inhalt des Arrays Pixel für Pixel in das Bild
+    int index, iGrauwert;
     for (int y = 0; y < 512; ++y) {
         for (int x = 0; x < 512; ++x) {
             // Berechne den zugehörigen index des Speichers
-            int index = y * 512 + x;
+            index = y * 512 + x;
             // Grauwert an dem index aus imageData auslesen
-            int iGrauwert = imageData[index];
+            iGrauwert = imageData[index];
             // Grauwert als Pixel an der Position x, y im image setzen
             image.setPixel(x, y, qRgb(iGrauwert, iGrauwert, iGrauwert));
         }
@@ -163,22 +164,20 @@ void Widget::MaleBild12Bit()
     showInputs();
 }
 
-int Widget::windowing(int HU_value, int center, int width)
+int Widget::windowing(int HU_value, int windowCenter, int windowWidth, int &greyValue)
 {
-    int iGrauwert;
-
     //Fensterung berechnen
-    int window_min = center - width / 2;
-    int window_max = center + width / 2;
+    int window_min = windowCenter - windowWidth / 2;
+    int window_max = windowCenter + windowWidth / 2;
     if (HU_value < window_min) {
-        iGrauwert = 0;
+        greyValue = 0;
     } else if (HU_value > window_max) {
-        iGrauwert = 255;
+        greyValue = 255;
     } else {
-        iGrauwert = static_cast<int>(255.0 * (HU_value - (center - width / 2)) / width);
+        greyValue = static_cast<int>(255.0 * (HU_value - (windowCenter - windowWidth / 2)) / windowWidth);
     }
 
-    return iGrauwert;
+    return 0;
 }
 
 void Widget::updatedWindowingCenter(int value)
@@ -211,6 +210,9 @@ void Widget::onLineEditWidthChanged(const QString &text)
 
 void Widget::updateSliceView()
 {
+    QElapsedTimer timer;
+    timer.start();
+
     // Erzeuge ein Objekt vom Typ Image
     QImage image(512, 512, QImage::Format_RGB32);
 
@@ -218,24 +220,26 @@ void Widget::updateSliceView()
     image.fill(qRgb(0, 0, 0));
 
     // Setze Inhalt des Arrays Pixel für Pixel in das Bild
+    int index;
+    int greyValue;
     for (int y = 0; y < 512; ++y) {
         for (int x = 0; x < 512; ++x) {
             // Berechne den zugehörigen index des Speichers
-            int index = y * 512 + x;
+            index = y * 512 + x;
             // Grauwert an dem index aus imageData auslesen
-            int iGrauwert = windowing(m_pImageData[index],
-                                      ui->slider_windowing_center->value(),
-                                      ui->slider_windowing_width->value());
+            windowing(m_pImageData[index], ui->slider_windowing_center->value(), ui->slider_windowing_width->value(), greyValue);
             //int iGrauwert = windowing(m_pImageData[index], 600, 1200);
             //int iGrauwert = windowing(m_pImageData[index], 0, 800);
             // Grauwert als Pixel an der Position x, y im image setzen
-            image.setPixel(x, y, qRgb(iGrauwert, iGrauwert, iGrauwert));
+            image.setPixel(x, y, qRgb(greyValue, greyValue, greyValue));
         }
     }
 
     // Bild auf Benutzeroberfläche anzeigen
     ui->label_image->setPixmap(QPixmap::fromImage(image));
     this->imageDrawn = true;
+
+    qDebug() << timer.nsecsElapsed();
 }
 
 void Widget::hideInputs()

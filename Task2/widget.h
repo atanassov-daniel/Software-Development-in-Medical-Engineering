@@ -20,7 +20,7 @@ public:
 private:
     Ui::Widget *ui;
     short *m_pImageData;
-    int windowing(int HU_value, int center, int width);
+    int windowing(int HU_value, int windowCenter, int windowWidth, int &greyValue);
     void updateSliceView();
     bool imageDrawn;
     void hideInputs();
