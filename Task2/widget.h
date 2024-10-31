@@ -33,6 +33,9 @@ private slots:
     void updatedWindowingWidth(int value);
     void onLineEditCenterChanged(const QString &text);
     void onLineEditWidthChanged(const QString &text);
+    void Male3D();
+    void updatedSchicht(int value);
+    void onLineEditSchichtChanged(const QString &text);
 };
 
 #endif // WIDGET_H
