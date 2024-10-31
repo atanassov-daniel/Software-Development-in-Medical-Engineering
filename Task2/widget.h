@@ -19,12 +19,20 @@ public:
 
 private:
     Ui::Widget *ui;
-    short* m_pImageData;
+    short *m_pImageData;
     int windowing(int HU_value, int center, int width);
+    void updateSliceView();
+    bool imageDrawn;
+    void hideInputs();
+    void showInputs();
 
 private slots:
     void MaleBild8Bit();
     void MaleBild12Bit();
+    void updatedWindowingCenter(int value);
+    void updatedWindowingWidth(int value);
+    void onLineEditCenterChanged(const QString &text);
+    void onLineEditWidthChanged(const QString &text);
 };
 
 #endif // WIDGET_H
