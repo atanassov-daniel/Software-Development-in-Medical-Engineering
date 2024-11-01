@@ -36,6 +36,8 @@ private slots:
     void Male3D();
     void updatedSchicht(int value);
     void onLineEditSchichtChanged(const QString &text);
+    void updatedSchwellenwert(int value);
+    void onSpinBoxSchwellenwertChanged(int value);
 };
 
 #endif // WIDGET_H

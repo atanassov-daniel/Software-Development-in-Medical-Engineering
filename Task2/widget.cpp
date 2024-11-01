@@ -38,7 +38,17 @@ Widget::Widget(QWidget *parent)
             this,
             SLOT(onLineEditSchichtChanged(QString)));
 
-    this->imageDrawn = false; // idea behind adding this->imageDrawn: otherwise even if a picture hasn't been loaded yet, one could move the slider and the image in the label_image (which is just all pixels set to black) would then change color, plus I'm not sure what the access of m_pImageData[index] when it isn't set yet would be, is it a memory leak?
+    connect(ui->slider_schwellenwert,
+            SIGNAL(valueChanged(int)),
+            this,
+            SLOT(updatedSchwellenwert(int)));
+    connect(ui->spinBox_schwellenwert,
+            SIGNAL(valueChanged(int)),
+            this,
+            SLOT(onSpinBoxSchwellenwertChanged(int)));
+
+    this->imageDrawn = false;
+    // idea behind adding this->imageDrawn: otherwise even if a picture hasn't been loaded yet, one could move the slider and the image in the label_image (which is just all pixels set to black) would then change color, plus I'm not sure what the access of m_pImageData[index] when it isn't set yet would be, is it a memory leak?
 
     // set the allowed input to the input boxes to the same range of values as the corresponding sliders
     QValidator *validator_center = new QIntValidator(ui->slider_windowing_center->minimum(),
@@ -238,21 +248,30 @@ void Widget::updateSliceView()
     if (ui->slider_schicht->isVisible()) {
         schicht = ui->slider_schicht->value();
     }
+    int schwellenwert = 0;
+    if (ui->slider_schwellenwert->isVisible()) {
+        schwellenwert = ui->slider_schwellenwert->value();
+    }
+
     int index;
     int greyValue;
     for (int y = 0; y < 512; ++y) {
         for (int x = 0; x < 512; ++x) {
             // Berechne den zugehörigen index des Speichers
             index = y * 512 + x;
-            // Grauwert an dem index aus imageData auslesen
-            windowing(m_pImageData[index + schicht * (512 * 512)],
-                      ui->slider_windowing_center->value(),
-                      ui->slider_windowing_width->value(),
-                      greyValue);
-            //int iGrauwert = windowing(m_pImageData[index], 600, 1200);
-            //int iGrauwert = windowing(m_pImageData[index], 0, 800);
-            // Grauwert als Pixel an der Position x, y im image setzen
-            image.setPixel(x, y, qRgb(greyValue, greyValue, greyValue));
+
+            // Wenn der HU-Wert den Schwellenwert überschreitet, dann setze die Pixelfarbe einfach auf rot
+            if (m_pImageData[index + schicht * (512 * 512)] > schwellenwert) {
+                image.setPixel(x, y, qRgb(255, 0, 0));
+            } else {
+                // Grauwert an dem index aus imageData auslesen
+                windowing(m_pImageData[index + schicht * (512 * 512)],
+                          ui->slider_windowing_center->value(),
+                          ui->slider_windowing_width->value(),
+                          greyValue);
+                // Grauwert als Pixel an der Position x, y im image setzen, wenn der HU-Wert nicht den Schwellenwert überschreitet
+                image.setPixel(x, y, qRgb(greyValue, greyValue, greyValue));
+            }
         }
     }
 
@@ -275,6 +294,10 @@ void Widget::hideInputs()
     ui->lineEdit_schicht->setVisible(false);
     ui->slider_schicht->setVisible(false);
     ui->label_schicht->setVisible(false);
+
+    ui->label_schwellenwert->setVisible(false);
+    ui->slider_schwellenwert->setVisible(false);
+    ui->spinBox_schwellenwert->setVisible(false);
 }
 
 void Widget::showInputs()
@@ -293,6 +316,11 @@ void Widget::showInputs()
     ui->slider_schicht->setVisible(true);
     ui->label_schicht->setVisible(true);
     ui->lineEdit_schicht->setText(QString::number(ui->slider_schicht->value()));
+
+    ui->label_schwellenwert->setVisible(true);
+    ui->slider_schwellenwert->setVisible(true);
+    ui->spinBox_schwellenwert->setVisible(true);
+    ui->spinBox_schwellenwert->setValue(ui->slider_schwellenwert->value());
 }
 
 void Widget::Male3D()
@@ -349,4 +377,15 @@ void Widget::onLineEditSchichtChanged(const QString &text)
 {
     int value = text.toInt();
     ui->slider_schicht->setValue(value); // This will also trigger `updatedSchicht`
+}
+
+void Widget::updatedSchwellenwert(int value)
+{
+    ui->spinBox_schwellenwert->setValue(value);
+    updateSliceView();
+}
+void Widget::onSpinBoxSchwellenwertChanged(int value)
+{
+    ui->slider_schwellenwert->setValue(value); // This will also trigger `updatedSchwellenwert`
+    updateSliceView();
 }
