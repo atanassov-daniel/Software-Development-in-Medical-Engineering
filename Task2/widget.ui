@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>772</width>
+    <width>1363</width>
     <height>514</height>
    </rect>
   </property>
@@ -264,6 +264,35 @@
    </property>
    <property name="maximum">
     <number>3071</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_image3D">
+   <property name="geometry">
+    <rect>
+     <x>750</x>
+     <y>0</y>
+     <width>512</width>
+     <height>512</height>
+    </rect>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::Shape::Box</enum>
+   </property>
+   <property name="text">
+    <string>Tiefenkarte Label</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_tiefenkarte">
+   <property name="geometry">
+    <rect>
+     <x>1270</x>
+     <y>20</y>
+     <width>80</width>
+     <height>24</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Tiefenkarte</string>
    </property>
   </widget>
  </widget>

@@ -25,6 +25,9 @@ private:
     bool imageDrawn;
     void hideInputs();
     void showInputs();
+    short *m_ptiefenkarte;
+    int calculateDepthBuffer(
+        short *inputData, int width, int height, int layers, int threshold, short *depthBuffer);
 
 private slots:
     void MaleBild8Bit();
@@ -38,6 +41,7 @@ private slots:
     void onLineEditSchichtChanged(const QString &text);
     void updatedSchwellenwert(int value);
     void onSpinBoxSchwellenwertChanged(int value);
+    void MaleTiefenkarte();
 };
 
 #endif // WIDGET_H

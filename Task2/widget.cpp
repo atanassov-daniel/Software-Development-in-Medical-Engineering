@@ -5,6 +5,8 @@
 #include "./ui_widget.h"
 #include <qvalidator.h>
 
+const int imWidth = 512;
+const int imHeight = 512;
 const int CT_schichten = 130;
 
 Widget::Widget(QWidget *parent)
@@ -15,6 +17,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->pushButton_load_8bit, SIGNAL(clicked()), this, SLOT(MaleBild8Bit()));
     connect(ui->pushButton_load_12bit, SIGNAL(clicked()), this, SLOT(MaleBild12Bit()));
     connect(ui->pushButton_load_3D, SIGNAL(clicked()), this, SLOT(Male3D()));
+    connect(ui->pushButton_tiefenkarte, SIGNAL(clicked()), this, SLOT(MaleTiefenkarte()));
     connect(ui->slider_windowing_center,
             SIGNAL(valueChanged(int)),
             this,
@@ -66,8 +69,9 @@ Widget::Widget(QWidget *parent)
 
     hideInputs();
 
-    // Speicher der Größe CT_schichten*512*512 reservieren
-    m_pImageData = new short[CT_schichten * 512 * 512];
+    // Speicher reservieren
+    m_pImageData = new short[CT_schichten * imHeight * imWidth];
+    m_ptiefenkarte = new short[imHeight * imWidth];
 }
 
 Widget::~Widget()
@@ -75,18 +79,19 @@ Widget::~Widget()
     delete ui;
     // Speicher wieder freigeben
     delete[] m_pImageData;
+    delete[] m_ptiefenkarte;
 }
 
 void Widget::MaleBild8Bit()
 {
     // Erzeuge ein Objekt vom Typ Image
-    QImage image(512, 512, QImage::Format_RGB32);
+    QImage image(imWidth, imHeight, QImage::Format_RGB32);
 
     // Initialisiere das Bild mit schwarzem Hintergrund
     image.fill(qRgb(0, 0, 0));
 
     // Speicher (Array) für Bilddaten auf dem Stack reservieren/bereitstellen
-    char imageData[512 * 512];
+    char imageData[imHeight * imWidth];
 
     // QFileDialog zum Auswählen von .raw Bilddateien öffnen und Datei auswählen
     QString imagePath = QFileDialog::getOpenFileName(this,
@@ -105,14 +110,14 @@ void Widget::MaleBild8Bit()
 
     // Bilddaten in Array einlesen
     int iFileSize = dataFile.size();
-    int iNumberBytesRead = dataFile.read(imageData, 512 * 512);
+    int iNumberBytesRead = dataFile.read(imageData, imHeight * imWidth);
 
     if (iFileSize != iNumberBytesRead) {
         QMessageBox::critical(this, "ACHTUNG", "Fehler beim Einlesen der Datei");
         return;
     }
     // Überprüfen, ob Anzahl eingelesener Bytes der erwarteten Anzahl entsprechen (512*512)
-    if (iNumberBytesRead != 512 * 512) {
+    if (iNumberBytesRead != imHeight * imWidth) {
         QMessageBox::critical(
             this,
             "ACHTUNG",
@@ -125,10 +130,10 @@ void Widget::MaleBild8Bit()
 
     // Setze Inhalt des Arrays Pixel für Pixel in das Bild
     int index, iGrauwert;
-    for (int y = 0; y < 512; ++y) {
-        for (int x = 0; x < 512; ++x) {
+    for (int y = 0; y < imHeight; ++y) {
+        for (int x = 0; x < imWidth; ++x) {
             // Berechne den zugehörigen index des Speichers
-            index = y * 512 + x;
+            index = y * imWidth + x;
             // Grauwert an dem index aus imageData auslesen
             iGrauwert = imageData[index];
             // Grauwert als Pixel an der Position x, y im image setzen
@@ -162,14 +167,14 @@ void Widget::MaleBild12Bit()
 
     // Bilddaten in Array einlesen
     int iFileSize = dataFile.size();
-    int iNumberBytesRead = dataFile.read((char *) m_pImageData, 512 * 512 * sizeof(short));
+    int iNumberBytesRead = dataFile.read((char *) m_pImageData, imHeight * imWidth * sizeof(short));
 
     if (iFileSize != iNumberBytesRead) {
         QMessageBox::critical(this, "ACHTUNG", "Fehler beim Einlesen der Datei");
         return;
     }
     // Überprüfen, ob Anzahl eingelesener Bytes der erwarteten Anzahl entsprechen (512*512)
-    if (iNumberBytesRead != 512 * 512 * sizeof(short)) {
+    if (iNumberBytesRead != imHeight * imWidth * sizeof(short)) {
         QMessageBox::critical(
             this,
             "ACHTUNG",
@@ -238,7 +243,7 @@ void Widget::updateSliceView()
     timer.start();
 
     // Erzeuge ein Objekt vom Typ Image
-    QImage image(512, 512, QImage::Format_RGB32);
+    QImage image(imWidth, imHeight, QImage::Format_RGB32);
 
     // Initialisiere das Bild mit schwarzem Hintergrund
     image.fill(qRgb(0, 0, 0));
@@ -255,17 +260,21 @@ void Widget::updateSliceView()
 
     int index;
     int greyValue;
-    for (int y = 0; y < 512; ++y) {
-        for (int x = 0; x < 512; ++x) {
+    for (int y = 0; y < imHeight; ++y) {
+        for (int x = 0; x < imWidth; ++x) {
             // Berechne den zugehörigen index des Speichers
-            index = y * 512 + x;
+            index = y * imWidth + x;
 
-            // Wenn der HU-Wert den Schwellenwert überschreitet, dann setze die Pixelfarbe einfach auf rot
-            if (m_pImageData[index + schicht * (512 * 512)] > schwellenwert) {
+            /*
+             * Wenn der HU-Wert den Schwellenwert überschreitet bzw. gleich ist
+             * (siehe Folie 4 von 4 - Segmentierung 3D Rekonstruktion),
+             * dann setze die Pixelfarbe einfach auf rot
+            */
+            if (m_pImageData[index + schicht * (imHeight * imWidth)] >= schwellenwert) {
                 image.setPixel(x, y, qRgb(255, 0, 0));
             } else {
                 // Grauwert an dem index aus imageData auslesen
-                windowing(m_pImageData[index + schicht * (512 * 512)],
+                windowing(m_pImageData[index + schicht * (imHeight * imWidth)],
                           ui->slider_windowing_center->value(),
                           ui->slider_windowing_width->value(),
                           greyValue);
@@ -298,6 +307,8 @@ void Widget::hideInputs()
     ui->label_schwellenwert->setVisible(false);
     ui->slider_schwellenwert->setVisible(false);
     ui->spinBox_schwellenwert->setVisible(false);
+
+    ui->pushButton_tiefenkarte->setDisabled(true);
 }
 
 void Widget::showInputs()
@@ -321,6 +332,8 @@ void Widget::showInputs()
     ui->slider_schwellenwert->setVisible(true);
     ui->spinBox_schwellenwert->setVisible(true);
     ui->spinBox_schwellenwert->setValue(ui->slider_schwellenwert->value());
+
+    ui->pushButton_tiefenkarte->setDisabled(false);
 }
 
 void Widget::Male3D()
@@ -343,14 +356,14 @@ void Widget::Male3D()
     // Bilddaten in Array einlesen
     int iFileSize = dataFile.size();
     int iNumberBytesRead = dataFile.read((char *) m_pImageData,
-                                         CT_schichten * 512 * 512 * sizeof(short));
+                                         CT_schichten * imHeight * imWidth * sizeof(short));
 
     if (iFileSize != iNumberBytesRead) {
         QMessageBox::critical(this, "ACHTUNG", "Fehler beim Einlesen der Datei");
         return;
     }
     // Überprüfen, ob Anzahl eingelesener Bytes der erwarteten Anzahl entsprechen (512*512)
-    if (iNumberBytesRead != CT_schichten * 512 * 512 * sizeof(short)) {
+    if (iNumberBytesRead != CT_schichten * imHeight * imWidth * sizeof(short)) {
         QMessageBox::critical(
             this,
             "ACHTUNG",
@@ -388,4 +401,83 @@ void Widget::onSpinBoxSchwellenwertChanged(int value)
 {
     ui->slider_schwellenwert->setValue(value); // This will also trigger `updatedSchwellenwert`
     updateSliceView();
+}
+
+/*
+die Parameter width, height und layers bestimmen jeweils die Breite, Höhe und Tiefe des CT-Datensatzes,
+welcher durch den Zeiger inputData übergeben wird. threshold ist der Schwellenwert in HU.
+depthBuffer ist ein (vorher anzulegender!) Speicherbereich, in dem die
+Tiefenkarte der Größe width*height als Rückgabewert gespeichert wird.
+*/
+int Widget::calculateDepthBuffer(
+    short *inputData, int width, int height, int layers, int threshold, short *depthBuffer)
+{
+    const int imageSize = (width * height);
+    int index;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // Berechne den zugehörigen index des Speichers
+            index = y * width + x;
+
+            /* Wir stellen uns vor, wir schauen aus einer bestimmten Richtung auf unseren 3D-Datensatz
+             * und zählen, wie viele Voxel können wir nach vorne gehen, bis der erste Voxel kommt,
+             * der den eingestellten Schwellenwert überschreitet. Wir schauen in positive Z-Richtung
+             * (Schichtnummer) auf unseren Datensatz. Die Anzahl Schichten, die man durchlaufen musste,
+             * ist nun an der Stelle (x,y) der zugehörige Tiefenwert.
+            */
+            bool isDepthSet = false;
+            for (int layer = 0; layer < layers; layer++) {
+                if (m_pImageData[index + layer * imageSize] >= threshold) {
+                    depthBuffer[index] = layer;
+                    isDepthSet = true;
+                    break;
+                }
+            }
+            /* if for some pixel (x, y) there is no layer found where the HU value is bigger
+             * than the threshold, then set the depth to either (layers) or (layers - 1)     (source: lecture)
+            */
+            if (!isDepthSet)
+                depthBuffer[index] = layers;
+        }
+    }
+
+    return 0;
+}
+
+void Widget::MaleTiefenkarte()
+{
+    if (this->imageDrawn == false)
+        return;
+    int schwellenwert = 0;
+    if (ui->slider_schwellenwert->isVisible()) {
+        schwellenwert = ui->slider_schwellenwert->value();
+    }
+    // Erzeuge ein Objekt vom Typ Image
+    QImage image(imWidth, imHeight, QImage::Format_RGB32);
+
+    // Initialisiere das Bild mit schwarzem Hintergrund
+    image.fill(qRgb(0, 0, 0));
+
+    calculateDepthBuffer(m_pImageData,
+                         imWidth,
+                         imHeight,
+                         CT_schichten,
+                         schwellenwert,
+                         m_ptiefenkarte);
+
+    int iGrauwert;
+    for (int y = 0; y < imHeight; ++y) {
+        for (int x = 0; x < imWidth; ++x) {
+            // Tiefenwert an dem index aus imageData auslesen
+            iGrauwert = m_ptiefenkarte[y * imWidth + x];
+            /* Um zu überprüfen, ob die Berechnung der Tiefenkarte funktioniert hat, könnt ihr die
+             * Tiefenkarte nach der Berechnung (in der der Slot-Funktion) in einem zusätzlichen Label
+             * darstellen, indem der Tiefenwert direkt als Grauwert angezeigt wird.
+            */
+            image.setPixel(x, y, qRgb(iGrauwert, iGrauwert, iGrauwert));
+        }
+    }
+
+    // Bild auf Benutzeroberfläche anzeigen
+    ui->label_image3D->setPixmap(QPixmap::fromImage(image));
 }
