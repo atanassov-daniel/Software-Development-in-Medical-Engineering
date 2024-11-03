@@ -18,6 +18,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->pushButton_load_12bit, SIGNAL(clicked()), this, SLOT(MaleBild12Bit()));
     connect(ui->pushButton_load_3D, SIGNAL(clicked()), this, SLOT(Male3D()));
     connect(ui->pushButton_tiefenkarte, SIGNAL(clicked()), this, SLOT(MaleTiefenkarte()));
+    connect(ui->pushButton_3D, SIGNAL(clicked()), this, SLOT(render3D()));
     connect(ui->slider_windowing_center,
             SIGNAL(valueChanged(int)),
             this,
@@ -72,6 +73,10 @@ Widget::Widget(QWidget *parent)
     // Speicher reservieren
     m_pImageData = new short[CT_schichten * imHeight * imWidth];
     m_ptiefenkarte = new short[imHeight * imWidth];
+    m_pshadedBuffer = new short[imHeight * imWidth];
+
+    this->is3dDrawn = false;
+    // idea behind adding the variable is3dDrawn: so that if the 3D button was clicke and the 3D view was rendered, then I can connect things so that changing the Schwellenwert through the slider/input automatically changes the 3D view too
 }
 
 Widget::~Widget()
@@ -80,6 +85,7 @@ Widget::~Widget()
     // Speicher wieder freigeben
     delete[] m_pImageData;
     delete[] m_ptiefenkarte;
+    delete[] m_pshadedBuffer;
 }
 
 void Widget::MaleBild8Bit()
@@ -309,6 +315,7 @@ void Widget::hideInputs()
     ui->spinBox_schwellenwert->setVisible(false);
 
     ui->pushButton_tiefenkarte->setDisabled(true);
+    ui->pushButton_3D->setDisabled(true);
 }
 
 void Widget::showInputs()
@@ -334,6 +341,7 @@ void Widget::showInputs()
     ui->spinBox_schwellenwert->setValue(ui->slider_schwellenwert->value());
 
     ui->pushButton_tiefenkarte->setDisabled(false);
+    ui->pushButton_3D->setDisabled(false);
 }
 
 void Widget::Male3D()
@@ -396,6 +404,9 @@ void Widget::updatedSchwellenwert(int value)
 {
     ui->spinBox_schwellenwert->setValue(value);
     updateSliceView();
+    if (this->is3dDrawn) {
+        render3D();
+    }
 }
 void Widget::onSpinBoxSchwellenwertChanged(int value)
 {
@@ -480,4 +491,59 @@ void Widget::MaleTiefenkarte()
 
     // Bild auf Benutzeroberfläche anzeigen
     ui->label_image3D->setPixmap(QPixmap::fromImage(image));
+}
+
+int Widget::renderDepthBuffer(const short *depthBuffer, int width, int height, short *shadedBufer)
+{
+    /*
+     * Bei einer Schrittweite von 2 fällt der erste und letzte Pixel im Bild weg, das heißt,
+     * das Bild wird nur im Bereich zwischen 1 und 510 gezeichnet.
+    */
+    /*const int s_x = 2;
+    const int s_y = 2;*/
+    int T_x, T_y;
+    for (int y = 1; y < imHeight - 1; ++y) {
+        for (int x = 1; x < imWidth - 1; ++x) {
+            // Berechne für jeden Pixel den normierten Intensitätswert I_reflektiert, welcher direkt der anzuzeigende Grauwert ist
+            T_x = depthBuffer[y * imWidth + x - 1] - depthBuffer[y * imWidth + x + 1];
+            T_y = depthBuffer[(y - 1) * imWidth + x] - depthBuffer[(y + 1) * imWidth + x];
+            // calculate I_reflektiert and store the value in the shadedBuffer
+            /*shadedBufer[y * imWidth + x] = 255.0 * (s_x * s_y)
+                                           / sqrt(pow((s_y * T_x), 2) + pow((s_x * T_y), 2)
+                                                  + pow((s_x * s_y), 2));*/
+            shadedBufer[y * imWidth + x] = 255.0 * 4
+                                           / sqrt(pow((2 * T_x), 2) + pow((2 * T_y), 2) + 16);
+        }
+    }
+
+    return 0;
+}
+
+void Widget::render3D()
+{
+    int threshold = 0;
+    if (ui->slider_schwellenwert->isVisible()) {
+        threshold = ui->slider_schwellenwert->value();
+    }
+
+    calculateDepthBuffer(m_pImageData, imWidth, imHeight, CT_schichten, threshold, m_ptiefenkarte);
+    renderDepthBuffer(m_ptiefenkarte, imWidth, imHeight, m_pshadedBuffer);
+
+    // Erzeuge ein Objekt vom Typ Image
+    QImage image(imWidth, imHeight, QImage::Format_RGB32);
+
+    // Initialisiere das Bild mit schwarzem Hintergrund
+    image.fill(qRgb(0, 0, 0));
+
+    int iGrauwert;
+    for (int y = 0; y < imHeight; ++y) {
+        for (int x = 0; x < imWidth; ++x) {
+            iGrauwert = m_pshadedBuffer[y * imWidth + x];
+            image.setPixel(x, y, qRgb(iGrauwert, iGrauwert, iGrauwert));
+        }
+    }
+
+    // Bild auf Benutzeroberfläche anzeigen
+    ui->label_image3D->setPixmap(QPixmap::fromImage(image));
+    is3dDrawn = true;
 }

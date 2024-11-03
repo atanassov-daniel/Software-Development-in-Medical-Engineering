@@ -28,6 +28,9 @@ private:
     short *m_ptiefenkarte;
     int calculateDepthBuffer(
         short *inputData, int width, int height, int layers, int threshold, short *depthBuffer);
+    int renderDepthBuffer(const short *depthBuffer, int width, int height, short *shadedBufer);
+    short *m_pshadedBuffer;
+    bool is3dDrawn;
 
 private slots:
     void MaleBild8Bit();
@@ -42,6 +45,7 @@ private slots:
     void updatedSchwellenwert(int value);
     void onSpinBoxSchwellenwertChanged(int value);
     void MaleTiefenkarte();
+    void render3D();
 };
 
 #endif // WIDGET_H
