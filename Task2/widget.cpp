@@ -2,6 +2,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include "./ui_widget.h"
 #include <qvalidator.h>
 
@@ -74,6 +75,7 @@ Widget::Widget(QWidget *parent)
 
     this->is3dDrawn = false;
     // idea behind adding the variable is3dDrawn: so that if the 3D button was clicke and the 3D view was rendered, then I can connect things so that changing the Schwellenwert through the slider/input automatically changes the 3D view too
+    this->isDepthBufferCreated = false;
 }
 
 Widget::~Widget()
@@ -190,6 +192,7 @@ void Widget::hideInputs()
     ui->frame_width->setVisible(false);
     ui->frame_schicht->setVisible(false);
     ui->frame_schwellenwert->setVisible(false);
+    ui->frame_coordinates->setVisible(false);
 
     ui->pushButton_3D->setDisabled(true);
 }
@@ -200,6 +203,7 @@ void Widget::showInputs()
     ui->frame_width->setVisible(true);
     ui->frame_schicht->setVisible(true);
     ui->frame_schwellenwert->setVisible(true);
+    ui->frame_coordinates->setVisible(true);
 
     ui->lineEdit_center->setText(QString::number(ui->slider_windowing_center->value()));
     ui->lineEdit_width->setText(QString::number(ui->slider_windowing_width->value()));
@@ -343,6 +347,7 @@ int Widget::renderDepthBuffer(const short *depthBuffer, int width, int height, s
                                            / sqrt(pow((2 * T_x), 2) + pow((2 * T_y), 2) + 16);
         }
     }
+    this->isDepthBufferCreated = true;
 
     return 0;
 }
@@ -374,4 +379,26 @@ void Widget::render3D()
     // Bild auf Benutzeroberfläche anzeigen
     ui->label_image3D->setPixmap(QPixmap::fromImage(image));
     is3dDrawn = true;
+}
+
+void Widget::mousePressEvent(QMouseEvent *event)
+{
+    QPoint globalPos = event->pos();
+    QPoint localPos = ui->label_image3D->mapFromParent(globalPos);
+    if (ui->label_image3D->rect().contains(localPos)) {
+        ui->value_x->setText(QString::number(localPos.x()));
+        ui->value_y->setText(QString::number(localPos.y()));
+
+        if (this->isDepthBufferCreated) {
+            ui->value_z->setText(
+                QString::number(this->m_ptiefenkarte[localPos.x() + localPos.y() * imWidth]));
+        }
+        return;
+    }
+    localPos = ui->label_image->mapFromParent(globalPos);
+    if (ui->label_image->rect().contains(localPos)) {
+        ui->value_x->setText(QString::number(localPos.x()));
+        ui->value_y->setText(QString::number(localPos.y()));
+        ui->value_z->setText(QString::number(ui->slider_schicht->value()));
+    }
 }

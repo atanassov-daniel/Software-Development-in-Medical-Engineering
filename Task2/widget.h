@@ -31,6 +31,7 @@ private:
     int renderDepthBuffer(const short *depthBuffer, int width, int height, short *shadedBufer);
     short *m_pshadedBuffer;
     bool is3dDrawn;
+    bool isDepthBufferCreated;
 
 private slots:
     void updatedWindowingCenter(int value);
@@ -43,6 +44,7 @@ private slots:
     void updatedSchwellenwert(int value);
     void onSpinBoxSchwellenwertChanged(int value);
     void render3D();
+    void mousePressEvent(QMouseEvent *event);
 };
 
 #endif // WIDGET_H
