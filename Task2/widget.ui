@@ -112,9 +112,6 @@
     </property>
    </widget>
    <widget class="QLineEdit" name="lineEdit_width">
-    <property name="enabled">
-     <bool>true</bool>
-    </property>
     <property name="geometry">
      <rect>
       <x>55</x>
@@ -132,7 +129,7 @@
      <rect>
       <x>15</x>
       <y>30</y>
-      <width>121</width>
+      <width>41</width>
       <height>16</height>
      </rect>
     </property>

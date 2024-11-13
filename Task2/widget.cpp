@@ -69,7 +69,6 @@ Widget::Widget(QWidget *parent)
     hideInputs();
 
     // Speicher reservieren
-    m_pImageData = new short[CT_schichten * imHeight * imWidth];
     m_ptiefenkarte = new short[imHeight * imWidth];
     m_pshadedBuffer = new short[imHeight * imWidth];
 
@@ -82,7 +81,6 @@ Widget::~Widget()
 {
     delete ui;
     // Speicher wieder freigeben
-    delete[] m_pImageData;
     delete[] m_ptiefenkarte;
     delete[] m_pshadedBuffer;
 }
@@ -153,6 +151,8 @@ void Widget::updateSliceView()
         schwellenwert = ui->slider_schwellenwert->value();
     }
 
+    short *m_pImageData = dataset.data();
+
     int index;
     int greyValue;
     for (int y = 0; y < imHeight; ++y) {
@@ -220,37 +220,13 @@ void Widget::Male3D()
                                                      "Open Image",
                                                      "../../",
                                                      "Raw Image Files (*.raw)");
-    // Datei im Lesemodus öffnen
-    QFile dataFile(imagePath);
-    bool bFileOpen = dataFile.open(QIODevice::ReadOnly);
-
-    // check if the file could be opened
-    if (!bFileOpen) {
-        QMessageBox::critical(this, "ACHTUNG", "Datei konnte nicht geöffnet werden");
+    //load dataset
+    try {
+        dataset.load(imagePath);
+    } catch (QString e) {
+        QMessageBox::critical(this, "ACHTUNG", e);
         return;
     }
-
-    // Bilddaten in Array einlesen
-    int iFileSize = dataFile.size();
-    int iNumberBytesRead = dataFile.read((char *) m_pImageData,
-                                         CT_schichten * imHeight * imWidth * sizeof(short));
-
-    if (iFileSize != iNumberBytesRead) {
-        QMessageBox::critical(this, "ACHTUNG", "Fehler beim Einlesen der Datei");
-        // TODO if a 3D view has been loaded, then there is a try to load an invalid file, and then the schwellenwert is changed, it becomes a really weird thing to look at, because some of the bytes from the invalid file still get read into the array where the previous valid file data is stored, the easiest way to fix it would probably be to just flush the image labels empty and set the array for the image data to a nullptr, and then deactivate inputs
-        return;
-    }
-    // Überprüfen, ob Anzahl eingelesener Bytes der erwarteten Anzahl entsprechen (512*512)
-    if (iNumberBytesRead != CT_schichten * imHeight * imWidth * sizeof(short)) {
-        QMessageBox::critical(
-            this,
-            "ACHTUNG",
-            "Anzahl eingelesener Bytes entspricht nicht der erwarteten Anzahl (130*512*512)");
-        return;
-    }
-
-    // Datei schließen
-    dataFile.close();
 
     // Bild generieren und auf die GUI anzeigen
     updateSliceView();
@@ -308,7 +284,7 @@ int Widget::calculateDepthBuffer(
             */
             bool isDepthSet = false;
             for (int layer = 0; layer < layers; layer++) {
-                if (m_pImageData[index + layer * imageSize] >= threshold) {
+                if (dataset.data()[index + layer * imageSize] >= threshold) {
                     depthBuffer[index] = layer;
                     isDepthSet = true;
                     break;
@@ -359,7 +335,7 @@ void Widget::render3D()
         threshold = ui->slider_schwellenwert->value();
     }
 
-    calculateDepthBuffer(m_pImageData, imWidth, imHeight, CT_schichten, threshold, m_ptiefenkarte);
+    calculateDepthBuffer(dataset.data(), imWidth, imHeight, CT_schichten, threshold, m_ptiefenkarte);
     renderDepthBuffer(m_ptiefenkarte, imWidth, imHeight, m_pshadedBuffer);
 
     // Erzeuge ein Objekt vom Typ Image

@@ -2,6 +2,7 @@
 #define WIDGET_H
 
 #include <QWidget>
+#include "CTDataset.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -19,7 +20,6 @@ public:
 
 private:
     Ui::Widget *ui;
-    short *m_pImageData;
     int windowing(int HU_value, int windowCenter, int windowWidth, int &greyValue);
     void updateSliceView();
     bool imageDrawn;
@@ -32,6 +32,7 @@ private:
     short *m_pshadedBuffer;
     bool is3dDrawn;
     bool isDepthBufferCreated;
+    CTDataset dataset;
 
 private slots:
     void updatedWindowingCenter(int value);
