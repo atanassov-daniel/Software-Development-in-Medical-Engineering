@@ -14,10 +14,7 @@ Widget::Widget(QWidget *parent)
     , ui(new Ui::Widget)
 {
     ui->setupUi(this);
-    connect(ui->pushButton_load_8bit, SIGNAL(clicked()), this, SLOT(MaleBild8Bit()));
-    connect(ui->pushButton_load_12bit, SIGNAL(clicked()), this, SLOT(MaleBild12Bit()));
     connect(ui->pushButton_load_3D, SIGNAL(clicked()), this, SLOT(Male3D()));
-    connect(ui->pushButton_tiefenkarte, SIGNAL(clicked()), this, SLOT(MaleTiefenkarte()));
     connect(ui->pushButton_3D, SIGNAL(clicked()), this, SLOT(render3D()));
     connect(ui->slider_windowing_center,
             SIGNAL(valueChanged(int)),
@@ -88,116 +85,6 @@ Widget::~Widget()
     delete[] m_pshadedBuffer;
 }
 
-void Widget::MaleBild8Bit()
-{
-    // Erzeuge ein Objekt vom Typ Image
-    QImage image(imWidth, imHeight, QImage::Format_RGB32);
-
-    // Initialisiere das Bild mit schwarzem Hintergrund
-    image.fill(qRgb(0, 0, 0));
-
-    // Speicher (Array) für Bilddaten auf dem Stack reservieren/bereitstellen
-    char imageData[imHeight * imWidth];
-
-    // QFileDialog zum Auswählen von .raw Bilddateien öffnen und Datei auswählen
-    QString imagePath = QFileDialog::getOpenFileName(this,
-                                                     "Open Image",
-                                                     "../../",
-                                                     "Raw Image Files (*.raw)");
-    // Datei im Lesemodus öffnen
-    QFile dataFile(imagePath);
-    bool bFileOpen = dataFile.open(QIODevice::ReadOnly);
-
-    // check if the file could be opened
-    if (!bFileOpen) {
-        QMessageBox::critical(this, "ACHTUNG", "Datei konnte nicht geöffnet werden");
-        return;
-    }
-
-    // Bilddaten in Array einlesen
-    int iFileSize = dataFile.size();
-    int iNumberBytesRead = dataFile.read(imageData, imHeight * imWidth);
-
-    if (iFileSize != iNumberBytesRead) {
-        QMessageBox::critical(this, "ACHTUNG", "Fehler beim Einlesen der Datei");
-        return;
-    }
-    // Überprüfen, ob Anzahl eingelesener Bytes der erwarteten Anzahl entsprechen (512*512)
-    if (iNumberBytesRead != imHeight * imWidth) {
-        QMessageBox::critical(
-            this,
-            "ACHTUNG",
-            "Anzahl eingelesener Bytes entspricht nicht der erwarteten Anzahl (512*512)");
-        return;
-    }
-
-    // Datei schließen
-    dataFile.close();
-
-    // Setze Inhalt des Arrays Pixel für Pixel in das Bild
-    int index, iGrauwert;
-    for (int y = 0; y < imHeight; ++y) {
-        for (int x = 0; x < imWidth; ++x) {
-            // Berechne den zugehörigen index des Speichers
-            index = y * imWidth + x;
-            // Grauwert an dem index aus imageData auslesen
-            iGrauwert = imageData[index];
-            // Grauwert als Pixel an der Position x, y im image setzen
-            image.setPixel(x, y, qRgb(iGrauwert, iGrauwert, iGrauwert));
-        }
-    }
-
-    // Bild auf Benutzeroberfläche anzeigen
-    ui->label_image->setPixmap(QPixmap::fromImage(image));
-
-    // Deactivate the sliders and hide their value for the 8bit image
-    hideInputs();
-}
-
-void Widget::MaleBild12Bit()
-{
-    // QFileDialog zum Auswählen von .raw Bilddateien öffnen und Datei auswählen
-    QString imagePath = QFileDialog::getOpenFileName(this,
-                                                     "Open Image",
-                                                     "../../",
-                                                     "Raw Image Files (*.raw)");
-    // Datei im Lesemodus öffnen
-    QFile dataFile(imagePath);
-    bool bFileOpen = dataFile.open(QIODevice::ReadOnly);
-
-    // check if the file could be opened
-    if (!bFileOpen) {
-        QMessageBox::critical(this, "ACHTUNG", "Datei konnte nicht geöffnet werden");
-        return;
-    }
-
-    // Bilddaten in Array einlesen
-    int iFileSize = dataFile.size();
-    int iNumberBytesRead = dataFile.read((char *) m_pImageData, imHeight * imWidth * sizeof(short));
-
-    if (iFileSize != iNumberBytesRead) {
-        QMessageBox::critical(this, "ACHTUNG", "Fehler beim Einlesen der Datei");
-        return;
-    }
-    // Überprüfen, ob Anzahl eingelesener Bytes der erwarteten Anzahl entsprechen (512*512)
-    if (iNumberBytesRead != imHeight * imWidth * sizeof(short)) {
-        QMessageBox::critical(
-            this,
-            "ACHTUNG",
-            "Anzahl eingelesener Bytes entspricht nicht der erwarteten Anzahl (512*512)");
-        return;
-    }
-
-    // Datei schließen
-    dataFile.close();
-
-    // Bild generieren und auf die GUI anzeigen
-    updateSliceView();
-    // Slider aktivieren und Default-Werte anzeigen
-    showInputs();
-    // TODO Here the choose schicht slider gets shown too, even though it isn't needed
-}
-
 int Widget::windowing(int HU_value, int windowCenter, int windowWidth, int &greyValue)
 {
     //Fensterung berechnen
@@ -256,11 +143,11 @@ void Widget::updateSliceView()
 
     // Setze Inhalt des Arrays Pixel für Pixel in das Bild
     int schicht = 0;
-    if (ui->slider_schicht->isVisible()) {
+    if (ui->frame_schicht->isVisible()) {
         schicht = ui->slider_schicht->value();
     }
     int schwellenwert = 0;
-    if (ui->slider_schwellenwert->isVisible()) {
+    if (ui->frame_schwellenwert->isVisible()) {
         schwellenwert = ui->slider_schwellenwert->value();
     }
 
@@ -299,48 +186,26 @@ void Widget::updateSliceView()
 
 void Widget::hideInputs()
 {
-    ui->slider_windowing_center->setVisible(false);
-    ui->slider_windowing_width->setVisible(false);
-    ui->lineEdit_center->setVisible(false);
-    ui->lineEdit_width->setVisible(false);
-    ui->label_center->setVisible(false);
-    ui->label_width->setVisible(false);
+    ui->frame_center->setVisible(false);
+    ui->frame_width->setVisible(false);
+    ui->frame_schicht->setVisible(false);
+    ui->frame_schwellenwert->setVisible(false);
 
-    ui->lineEdit_schicht->setVisible(false);
-    ui->slider_schicht->setVisible(false);
-    ui->label_schicht->setVisible(false);
-
-    ui->label_schwellenwert->setVisible(false);
-    ui->slider_schwellenwert->setVisible(false);
-    ui->spinBox_schwellenwert->setVisible(false);
-
-    ui->pushButton_tiefenkarte->setDisabled(true);
     ui->pushButton_3D->setDisabled(true);
 }
 
 void Widget::showInputs()
 {
-    ui->slider_windowing_center->setVisible(true);
-    ui->slider_windowing_width->setVisible(true);
-    ui->lineEdit_center->setVisible(true);
-    ui->lineEdit_width->setVisible(true);
-    ui->label_center->setVisible(true);
-    ui->label_width->setVisible(true);
+    ui->frame_center->setVisible(true);
+    ui->frame_width->setVisible(true);
+    ui->frame_schicht->setVisible(true);
+    ui->frame_schwellenwert->setVisible(true);
 
     ui->lineEdit_center->setText(QString::number(ui->slider_windowing_center->value()));
     ui->lineEdit_width->setText(QString::number(ui->slider_windowing_width->value()));
-
-    ui->lineEdit_schicht->setVisible(true);
-    ui->slider_schicht->setVisible(true);
-    ui->label_schicht->setVisible(true);
     ui->lineEdit_schicht->setText(QString::number(ui->slider_schicht->value()));
-
-    ui->label_schwellenwert->setVisible(true);
-    ui->slider_schwellenwert->setVisible(true);
-    ui->spinBox_schwellenwert->setVisible(true);
     ui->spinBox_schwellenwert->setValue(ui->slider_schwellenwert->value());
 
-    ui->pushButton_tiefenkarte->setDisabled(false);
     ui->pushButton_3D->setDisabled(false);
 }
 
@@ -368,6 +233,7 @@ void Widget::Male3D()
 
     if (iFileSize != iNumberBytesRead) {
         QMessageBox::critical(this, "ACHTUNG", "Fehler beim Einlesen der Datei");
+        // TODO if a 3D view has been loaded, then there is a try to load an invalid file, and then the schwellenwert is changed, it becomes a really weird thing to look at, because some of the bytes from the invalid file still get read into the array where the previous valid file data is stored, the easiest way to fix it would probably be to just flush the image labels empty and set the array for the image data to a nullptr, and then deactivate inputs
         return;
     }
     // Überprüfen, ob Anzahl eingelesener Bytes der erwarteten Anzahl entsprechen (512*512)
@@ -455,44 +321,6 @@ int Widget::calculateDepthBuffer(
     return 0;
 }
 
-void Widget::MaleTiefenkarte()
-{
-    if (this->imageDrawn == false)
-        return;
-    int schwellenwert = 0;
-    if (ui->slider_schwellenwert->isVisible()) {
-        schwellenwert = ui->slider_schwellenwert->value();
-    }
-    // Erzeuge ein Objekt vom Typ Image
-    QImage image(imWidth, imHeight, QImage::Format_RGB32);
-
-    // Initialisiere das Bild mit schwarzem Hintergrund
-    image.fill(qRgb(0, 0, 0));
-
-    calculateDepthBuffer(m_pImageData,
-                         imWidth,
-                         imHeight,
-                         CT_schichten,
-                         schwellenwert,
-                         m_ptiefenkarte);
-
-    int iGrauwert;
-    for (int y = 0; y < imHeight; ++y) {
-        for (int x = 0; x < imWidth; ++x) {
-            // Tiefenwert an dem index aus imageData auslesen
-            iGrauwert = m_ptiefenkarte[y * imWidth + x];
-            /* Um zu überprüfen, ob die Berechnung der Tiefenkarte funktioniert hat, könnt ihr die
-             * Tiefenkarte nach der Berechnung (in der der Slot-Funktion) in einem zusätzlichen Label
-             * darstellen, indem der Tiefenwert direkt als Grauwert angezeigt wird.
-            */
-            image.setPixel(x, y, qRgb(iGrauwert, iGrauwert, iGrauwert));
-        }
-    }
-
-    // Bild auf Benutzeroberfläche anzeigen
-    ui->label_image3D->setPixmap(QPixmap::fromImage(image));
-}
-
 int Widget::renderDepthBuffer(const short *depthBuffer, int width, int height, short *shadedBufer)
 {
     /*
@@ -522,7 +350,7 @@ int Widget::renderDepthBuffer(const short *depthBuffer, int width, int height, s
 void Widget::render3D()
 {
     int threshold = 0;
-    if (ui->slider_schwellenwert->isVisible()) {
+    if (ui->frame_schwellenwert->isVisible()) {
         threshold = ui->slider_schwellenwert->value();
     }
 
