@@ -85,23 +85,6 @@ Widget::~Widget()
     delete[] m_pshadedBuffer;
 }
 
-int Widget::windowing(int HU_value, int windowCenter, int windowWidth, int &greyValue)
-{
-    //Fensterung berechnen
-    int window_min = windowCenter - windowWidth / 2;
-    int window_max = windowCenter + windowWidth / 2;
-    if (HU_value < window_min) {
-        greyValue = 0;
-    } else if (HU_value > window_max) {
-        greyValue = 255;
-    } else {
-        greyValue = static_cast<int>(255.0 * (HU_value - (windowCenter - windowWidth / 2))
-                                     / windowWidth);
-    }
-
-    return 0;
-}
-
 void Widget::updatedWindowingCenter(int value)
 {
     if (!this->imageDrawn)
@@ -169,12 +152,16 @@ void Widget::updateSliceView()
                 image.setPixel(x, y, qRgb(255, 0, 0));
             } else {
                 // Grauwert an dem index aus imageData auslesen
-                windowing(m_pImageData[index + schicht * (imHeight * imWidth)],
-                          ui->slider_windowing_center->value(),
-                          ui->slider_windowing_width->value(),
-                          greyValue);
-                // Grauwert als Pixel an der Position x, y im image setzen, wenn der HU-Wert nicht den Schwellenwert überschreitet
-                image.setPixel(x, y, qRgb(greyValue, greyValue, greyValue));
+                if (CTDataset::windowing(m_pImageData[index + schicht * (imHeight * imWidth)],
+                                         ui->slider_windowing_center->value(),
+                                         ui->slider_windowing_width->value(),
+                                         greyValue)
+                    == ReturnCode::OK) {
+                    // Grauwert als Pixel an der Position x, y im image setzen, wenn der HU-Wert nicht den Schwellenwert überschreitet
+                    image.setPixel(x, y, qRgb(greyValue, greyValue, greyValue));
+                } else {
+                    // TODO Error handling
+                }
             }
         }
     }

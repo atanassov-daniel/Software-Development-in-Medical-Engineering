@@ -50,3 +50,29 @@ void CTDataset::load(QString imagePath)
     // Datei schließen
     dataFile.close();
 }
+
+ReturnCode CTDataset::windowing(int HU_value, int windowCenter, int windowWidth, int &greyValue)
+{
+    if (HU_value < -1024 || HU_value > 3071) {
+        return ReturnCode::HU_OUT_OF_RANGE;
+    }
+    if (windowCenter < -1024 || windowCenter > 3071) {
+        return ReturnCode::CENTER_OUT_OF_RANGE;
+    }
+    if (windowWidth < 1 || windowWidth > 4095) {
+        return ReturnCode::WIDTH_OUT_OF_RANGE;
+    }
+    //Fensterung berechnen
+    int window_min = windowCenter - windowWidth / 2;
+    int window_max = windowCenter + windowWidth / 2;
+    if (HU_value < window_min) {
+        greyValue = 0;
+    } else if (HU_value > window_max) {
+        greyValue = 255;
+    } else {
+        greyValue = static_cast<int>(255.0 * (HU_value - (windowCenter - windowWidth / 2))
+                                     / windowWidth);
+    }
+
+    return ReturnCode::OK;
+}

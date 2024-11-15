@@ -20,7 +20,6 @@ public:
 
 private:
     Ui::Widget *ui;
-    int windowing(int HU_value, int windowCenter, int windowWidth, int &greyValue);
     void updateSliceView();
     bool imageDrawn;
     void hideInputs();
