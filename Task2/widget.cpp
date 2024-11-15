@@ -68,21 +68,13 @@ Widget::Widget(QWidget *parent)
 
     hideInputs();
 
-    // Speicher reservieren
-    m_ptiefenkarte = new short[imHeight * imWidth];
-    m_pshadedBuffer = new short[imHeight * imWidth];
-
     this->is3dDrawn = false;
     // idea behind adding the variable is3dDrawn: so that if the 3D button was clicke and the 3D view was rendered, then I can connect things so that changing the Schwellenwert through the slider/input automatically changes the 3D view too
-    this->isDepthBufferCreated = false;
 }
 
 Widget::~Widget()
 {
     delete ui;
-    // Speicher wieder freigeben
-    delete[] m_ptiefenkarte;
-    delete[] m_pshadedBuffer;
 }
 
 void Widget::updatedWindowingCenter(int value)
@@ -247,74 +239,6 @@ void Widget::onSpinBoxSchwellenwertChanged(int value)
     updateSliceView();
 }
 
-/*
-die Parameter width, height und layers bestimmen jeweils die Breite, Höhe und Tiefe des CT-Datensatzes,
-welcher durch den Zeiger inputData übergeben wird. threshold ist der Schwellenwert in HU.
-depthBuffer ist ein (vorher anzulegender!) Speicherbereich, in dem die
-Tiefenkarte der Größe width*height als Rückgabewert gespeichert wird.
-*/
-int Widget::calculateDepthBuffer(
-    short *inputData, int width, int height, int layers, int threshold, short *depthBuffer)
-{
-    const int imageSize = (width * height);
-    int index;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            // Berechne den zugehörigen index des Speichers
-            index = y * width + x;
-
-            /* Wir stellen uns vor, wir schauen aus einer bestimmten Richtung auf unseren 3D-Datensatz
-             * und zählen, wie viele Voxel können wir nach vorne gehen, bis der erste Voxel kommt,
-             * der den eingestellten Schwellenwert überschreitet. Wir schauen in positive Z-Richtung
-             * (Schichtnummer) auf unseren Datensatz. Die Anzahl Schichten, die man durchlaufen musste,
-             * ist nun an der Stelle (x,y) der zugehörige Tiefenwert.
-            */
-            bool isDepthSet = false;
-            for (int layer = 0; layer < layers; layer++) {
-                if (dataset.data()[index + layer * imageSize] >= threshold) {
-                    depthBuffer[index] = layer;
-                    isDepthSet = true;
-                    break;
-                }
-            }
-            /* if for some pixel (x, y) there is no layer found where the HU value is bigger
-             * than the threshold, then set the depth to either (layers) or (layers - 1)     (source: lecture)
-            */
-            if (!isDepthSet)
-                depthBuffer[index] = layers;
-        }
-    }
-
-    return 0;
-}
-
-int Widget::renderDepthBuffer(const short *depthBuffer, int width, int height, short *shadedBufer)
-{
-    /*
-     * Bei einer Schrittweite von 2 fällt der erste und letzte Pixel im Bild weg, das heißt,
-     * das Bild wird nur im Bereich zwischen 1 und 510 gezeichnet.
-    */
-    /*const int s_x = 2;
-    const int s_y = 2;*/
-    int T_x, T_y;
-    for (int y = 1; y < imHeight - 1; ++y) {
-        for (int x = 1; x < imWidth - 1; ++x) {
-            // Berechne für jeden Pixel den normierten Intensitätswert I_reflektiert, welcher direkt der anzuzeigende Grauwert ist
-            T_x = depthBuffer[y * imWidth + x - 1] - depthBuffer[y * imWidth + x + 1];
-            T_y = depthBuffer[(y - 1) * imWidth + x] - depthBuffer[(y + 1) * imWidth + x];
-            // calculate I_reflektiert and store the value in the shadedBuffer
-            /*shadedBufer[y * imWidth + x] = 255.0 * (s_x * s_y)
-                                           / sqrt(pow((s_y * T_x), 2) + pow((s_x * T_y), 2)
-                                                  + pow((s_x * s_y), 2));*/
-            shadedBufer[y * imWidth + x] = 255.0 * 4
-                                           / sqrt(pow((2 * T_x), 2) + pow((2 * T_y), 2) + 16);
-        }
-    }
-    this->isDepthBufferCreated = true;
-
-    return 0;
-}
-
 void Widget::render3D()
 {
     int threshold = 0;
@@ -322,8 +246,8 @@ void Widget::render3D()
         threshold = ui->slider_schwellenwert->value();
     }
 
-    calculateDepthBuffer(dataset.data(), imWidth, imHeight, CT_schichten, threshold, m_ptiefenkarte);
-    renderDepthBuffer(m_ptiefenkarte, imWidth, imHeight, m_pshadedBuffer);
+    dataset.renderDepthBuffer(imWidth, imHeight, CT_schichten, threshold);
+    short *m_pshadedBuffer = dataset.shadedBuffer();
 
     // Erzeuge ein Objekt vom Typ Image
     QImage image(imWidth, imHeight, QImage::Format_RGB32);
@@ -352,9 +276,9 @@ void Widget::mousePressEvent(QMouseEvent *event)
         ui->value_x->setText(QString::number(localPos.x()));
         ui->value_y->setText(QString::number(localPos.y()));
 
-        if (this->isDepthBufferCreated) {
+        if (dataset.existsDepthBuffer()) {
             ui->value_z->setText(
-                QString::number(this->m_ptiefenkarte[localPos.x() + localPos.y() * imWidth]));
+                QString::number(dataset.depthBuffer()[localPos.x() + localPos.y() * imWidth]));
         }
         return;
     }

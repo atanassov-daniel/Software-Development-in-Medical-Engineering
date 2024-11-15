@@ -24,13 +24,7 @@ private:
     bool imageDrawn;
     void hideInputs();
     void showInputs();
-    short *m_ptiefenkarte;
-    int calculateDepthBuffer(
-        short *inputData, int width, int height, int layers, int threshold, short *depthBuffer);
-    int renderDepthBuffer(const short *depthBuffer, int width, int height, short *shadedBufer);
-    short *m_pshadedBuffer;
     bool is3dDrawn;
-    bool isDepthBufferCreated;
     CTDataset dataset;
 
 private slots:
