@@ -1,6 +1,8 @@
 #include "CTDataset.h"
+#include <QElapsedTimer>
 #include <QFile>
 #include <QMessageBox>
+#include <thread> // std::thread
 
 const int imWidth = 512;
 const int imHeight = 512;
@@ -100,44 +102,62 @@ ReturnCode CTDataset::windowing(int HU_value, int windowCenter, int windowWidth,
 }
 
 /*
-die Parameter width, height und layers bestimmen jeweils die Breite, Höhe und Tiefe des CT-Datensatzes,
-welcher durch den Zeiger inputData übergeben wird. threshold ist der Schwellenwert in HU.
-depthBuffer ist ein (vorher anzulegender!) Speicherbereich, in dem die
-Tiefenkarte der Größe width*height als Rückgabewert gespeichert wird.
+die Parameter width, height und layers bestimmen jeweils die Breite, Höhe und Tiefe des CT-Datensatzes, threshold ist der Schwellenwert in HU.
 */
 int CTDataset::calculateDepthBuffer(int width, int height, int layers, int threshold)
 {
-    const int imageSize = (width * height);
-    int index;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            // Berechne den zugehörigen index des Speichers
-            index = y * width + x;
+    QElapsedTimer timer;
+    timer.start();
 
-            /* Wir stellen uns vor, wir schauen aus einer bestimmten Richtung auf unseren 3D-Datensatz
-             * und zählen, wie viele Voxel können wir nach vorne gehen, bis der erste Voxel kommt,
-             * der den eingestellten Schwellenwert überschreitet. Wir schauen in positive Z-Richtung
-             * (Schichtnummer) auf unseren Datensatz. Die Anzahl Schichten, die man durchlaufen musste,
-             * ist nun an der Stelle (x,y) der zugehörige Tiefenwert.
-            */
-            bool isDepthSet = false;
-            for (int layer = 0; layer < layers; layer++) {
-                if (m_pImageData[index + layer * imageSize] >= threshold) {
-                    m_ptiefenkarte[index] = layer;
-                    isDepthSet = true;
-                    break;
+    const int imageSize = (width * height);
+
+    auto lambdaFun = [&](int threadIndex, int numThreads) {
+        int index;
+        for (int y = (height / numThreads) * threadIndex;
+             y < (height / numThreads) * (threadIndex + 1);
+             ++y) {
+            for (int x = 0; x < width; ++x) {
+                // Berechne den zugehörigen index des Speichers
+                index = y * width + x;
+
+                bool isDepthSet = false;
+                for (int layer = 0; layer < layers; layer++) {
+                    if (m_pImageData[index + layer * imageSize] >= threshold) {
+                        m_ptiefenkarte[index] = layer;
+                        isDepthSet = true;
+                        break;
+                    }
                 }
+                // if for some pixel (x, y) there is no layer found where the HU value is bigger than the threshold, then set the depth to either (layers) or (layers - 1)     (source: lecture)
+                if (!isDepthSet)
+                    m_ptiefenkarte[index] = layers;
             }
-            /* if for some pixel (x, y) there is no layer found where the HU value is bigger
-             * than the threshold, then set the depth to either (layers) or (layers - 1)     (source: lecture)
-            */
-            if (!isDepthSet)
-                m_ptiefenkarte[index] = layers;
         }
+    };
+
+    int numThreads = static_cast<int>(std::thread::hardware_concurrency() * 0.7);
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; i++) {
+        threads.emplace_back(lambdaFun, i, numThreads);
     }
+    for (auto &th : threads) {
+        th.join();
+    }
+    qDebug() << "calculateDepthBuffer with threads runtime: " << timer.nsecsElapsed();
 
     return 0;
 }
+/*
+calculateDepthBuffer with threads runtime:
+(130975300 + 115650500 + 127856900 + 143733700 + 144293100 + 140935300 + 147231900 + 150032700 + 145633000 + 142795000 + 142374400 + 153954800 + 185957000 + 215892600 + 196779500 + 209705600 + 212544100 + 206829000 + 203952100 + 210840700 + 120031000 + 109788700 + 20715300 + 7525300 + 4378500 + 6456100 + 111707700 + 106523100 + 106267100 + 4203000 + 6724800 + 21479700 + 8617100 + 21747600 + 90401100 + 103546300 + 116810400 + 102017200 + 120985900 + 114697200 + 110652300 + 107648400 + 107267400 + 109510600 + 109051200 + 105873100 + 107172900 + 104057500 + 107001000 + 113448900 + 115150700 + 104557300 + 115464000 + 111598000 + 122671800 + 115274700 + 121961000 + 138556600 + 141177400 + 143038500 + 136124800 + 143947200 + 143853600 + 142819400 + 144544000 + 139517100 + 143172800) / 67
+= 118473171.642 ns = 118.47 ms
+
+calculateDepthBuffer without threads runtime:
+(486038000 + 354232300 + 374982300 + 483433000 + 359807500 + 367947800 + 480836900 + 355914800 + 391152800 + 491589500 + 360086700 + 410720200 + 495876000 + 497187700 + 747332000 + 750615200 + 726609400 + 604684000) / 18
+= 485502561.111 ns = 485.5 ms
+
+Conclusion: when testing on my computer the solution with threads was around 4 times faster
+*/
 
 int CTDataset::renderDepthBuffer(int width, int height, int layers, int threshold)
 {
@@ -159,7 +179,7 @@ int CTDataset::renderDepthBuffer(int width, int height, int layers, int threshol
                                            / sqrt(pow((s_y * T_x), 2) + pow((s_x * T_y), 2)
                                                   + pow((s_x * s_y), 2));*/
             m_pshadedBuffer[y * width + x] = 255.0 * 4
-                                               / sqrt(pow((2 * T_x), 2) + pow((2 * T_y), 2) + 16);
+                                             / sqrt(pow((2 * T_x), 2) + pow((2 * T_y), 2) + 16);
         }
     }
     isDepthBufferCreated = true;
