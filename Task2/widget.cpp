@@ -8,11 +8,12 @@
 
 const int imWidth = 512;
 const int imHeight = 512;
-const int CT_schichten = 130;
+const int CT_layers = 130;
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
+    , dataset(imWidth, imHeight, CT_layers)
 {
     ui->setupUi(this);
     connect(ui->pushButton_load_3D, SIGNAL(clicked()), this, SLOT(Male3D()));
@@ -246,7 +247,7 @@ void Widget::render3D()
         threshold = ui->slider_schwellenwert->value();
     }
 
-    dataset.renderDepthBuffer(imWidth, imHeight, CT_schichten, threshold);
+    dataset.renderDepthBuffer(threshold);
     short *m_pshadedBuffer = dataset.shadedBuffer();
 
     // Erzeuge ein Objekt vom Typ Image

@@ -129,3 +129,4 @@ CMakeLists.txt.user*
 *.exe
 
 **/build
+**/doc
