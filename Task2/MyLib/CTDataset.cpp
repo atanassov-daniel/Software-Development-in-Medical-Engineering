@@ -111,8 +111,7 @@ ReturnCode CTDataset::windowing(int HU_value, int windowCenter, int windowWidth,
     } else if (HU_value > window_max) {
         greyValue = 255;
     } else {
-        greyValue = static_cast<int>(255.0 * (HU_value - (windowCenter - windowWidth / 2))
-                                     / windowWidth);
+        greyValue = std::roundf(255.0 * (HU_value - (windowCenter - windowWidth / 2)) / windowWidth);
     }
 
     return ReturnCode::OK;
@@ -120,7 +119,7 @@ ReturnCode CTDataset::windowing(int HU_value, int windowCenter, int windowWidth,
 
 /**
  * @details calculates the depth buffer for the given threshold HU value. The depth buffer is needed to render a 3D view of the CT dataset in renderDepthBuffer(). The function uses multithreading to improve performance on multi-threaded systems.
- * @param the threshold HU value for which the depth buffer gets calculated
+ * @param threshold the threshold HU value for which the depth buffer gets calculated
  * @return an error code (TODO)
 */
 int CTDataset::calculateDepthBuffer(int threshold)
@@ -176,7 +175,7 @@ Conclusion: when testing on my computer, the solution with threads was around 4 
 
 /**
  * @details uses calculateDepthBuffer() to calculate the depth buffer for the given threshold. With the depth buffer, using a raytracing approach, a 3D view of the CT image dataset gets rendered
- * @param the threshold HU value for which the 3D view gets rendered
+ * @param threshold the threshold HU value for which the 3D view gets rendered
  * @return an error code (TODO)
 */
 int CTDataset::renderDepthBuffer(int threshold)

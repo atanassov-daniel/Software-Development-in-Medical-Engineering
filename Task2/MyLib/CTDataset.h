@@ -1,5 +1,11 @@
 #pragma once
 
+#if defined(MYLIB_EXPORT)
+#define MYLIB_EXPORT_IMPORT Q_DECL_EXPORT
+#else
+#define MYLIB_EXPORT_IMPORT Q_DECL_IMPORT
+#endif
+
 #include <QString>
 
 enum class ReturnCode { OK, HU_OUT_OF_RANGE, CENTER_OUT_OF_RANGE, WIDTH_OUT_OF_RANGE };
@@ -8,7 +14,7 @@ enum class ReturnCode { OK, HU_OUT_OF_RANGE, CENTER_OUT_OF_RANGE, WIDTH_OUT_OF_R
  * @brief The CTDataset class provides functionality for working with a CT image dataset.
  * @details A CT image dataset can be loaded and then subsequently manipulated, for example a HU value can be linearly windowed to a grey value with a given window center and width, a depth and shaded buffer can be created to provide the needed data to render a 3D view
 */
-class CTDataset
+class MYLIB_EXPORT_IMPORT CTDataset
 {
 public:
     /** @brief Creates a CTDataset instance, with which CT datasets of the inputted dimensions can be manipulated */
